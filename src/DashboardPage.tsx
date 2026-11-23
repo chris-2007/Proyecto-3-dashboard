@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { partidos } from './data/loadMatches'
+import useFetchData from './hooks/useFetchData'
 import { useMediaQuery } from './hooks/useMediaQuery'
 import { FILTROS_VACIOS } from './types/partido'
 import type { Columna, Filtros } from './types/partido'
@@ -19,6 +19,7 @@ import AverageAttendance from './components/AverageAttendance'
 import AverageGoalsPerMatch from './components/AverageGoalsPerMatch'
 import ChartCard from './components/ChartCard'
 import DashboardLayout from './components/DashboardLayout'
+import EmptyState from './components/EmptyState'
 import FilterBar from './components/FilterBar'
 import Header from './components/Header'
 import MatchesTable from './components/MatchesTable'
@@ -63,12 +64,13 @@ const COLUMNAS_MOVIL: Columna[] = [
 ]
 
 export default function DashboardPage() {
+  const { partidos, cargando, error, recargar } = useFetchData()
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS)
   const [pestanaActiva, setPestanaActiva] = useState('kpi')
   const esMovil = useMediaQuery('(max-width: 768px)')
 
-  const partidosFiltrados = useMemo(() => filtrarPartidos(partidos, filtros), [filtros])
-  const opciones = useMemo(() => opcionesFiltros(partidos, filtros), [filtros])
+  const partidosFiltrados = useMemo(() => filtrarPartidos(partidos, filtros), [partidos, filtros])
+  const opciones = useMemo(() => opcionesFiltros(partidos, filtros), [partidos, filtros])
   const kpis = useMemo(() => calcularKpis(partidosFiltrados), [partidosFiltrados])
   const top = useMemo(() => topEquipos(partidosFiltrados, 10), [partidosFiltrados])
   const resultados = useMemo(() => distribucionResultados(partidosFiltrados), [partidosFiltrados])
@@ -85,6 +87,24 @@ export default function DashboardPage() {
 
   // En móvil solo se monta la sección de la pestaña activa
   const ver = (id: string) => !esMovil || pestanaActiva === id
+
+  if (cargando || error) {
+    return (
+      <div className="layout">
+        <Header titulo="Panel de datos" subtitulo="UEFA Nations League 2026" />
+        <EmptyState
+          mensaje={cargando ? 'Cargando partidos desde Firebase…' : `Error al cargar los datos: ${error}`}
+        />
+        {error && (
+          <p style={{ textAlign: 'center', marginTop: 16 }}>
+            <button type="button" className="btn btn--soft" onClick={recargar}>
+              Reintentar
+            </button>
+          </p>
+        )}
+      </div>
+    )
+  }
 
   return (
     <DashboardLayout
